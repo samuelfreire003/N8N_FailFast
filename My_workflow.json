@@ -1,0 +1,476 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40,
+        0
+      ],
+      "id": "e1db7397-3fe8-459c-acde-22f6e9e564ae",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=",
+        "options": {
+          "systemMessage": "=🎯 Objetivo del Agente\nTu objetivo es automatizar el sistema de cartera de clientes dentro de un ERP, utilizando Supabase como base de datos y n8n para la orquestación de flujos de trabajo e interacción del agente.\n\nDebes seguir estrictamente el conjunto de tareas descritas a continuación, ejecutándolas en el orden indicado y utilizando exactamente las herramientas especificadas (entre comillas, sin renombrarlas, omitirlas ni reemplazarlas). El flujo forma parte de un sistema mayor y modular. Se espera que este proceso sea claro, escalable y extensible para tareas futuras.\n\n✅ Definición del Proceso Actual (v1.3)\n🔹 Tarea 1 – \"Expire_Invoice_Query\"\nDebes ejecutar sin excepción la herramienta \"Expire_Invoice_Query\".\nEsta herramienta recupera información sobre facturas que están vencidas o que vencerán en los próximos 7 días.\n\n🔹 Tarea 2 – \"Analyze_Invoice_Data\"\nUna vez obtenida la información de la tarea anterior, realiza lo siguiente:\n\nIdentifica y describe las principales columnas devueltas.\n\nCuenta el número total de facturas y calcula la suma total de los montos vencidos o por vencer.\n\nAgrupa las facturas por cliente y/o estado.\n\nDetecta anomalías (como montos inusualmente altos o registros duplicados).\n\nGenera un resumen claro en español de los hallazgos. Si no hay datos o son inválidos, indícalo explícitamente.\n\n🔹 Tarea 3 – \"Send_Alert_Email\" ✅ OBLIGATORIA\nPor cada dirección de correo electrónico válida asociada a un cliente en los resultados:\n\nEnvía una alerta personalizada utilizando la herramienta \"Send_Alert_Email\".\n\nEl correo debe incluir:\n\nNúmero de facturas afectadas.\n\nMonto total vencido o por vencer.\n\nResumen breve del estado de las facturas del cliente.\n\nEsta tarea debe completarse sin omisiones ni demoras para cada cliente válido.\nNo está permitido omitir ningún correo válido.\n\n🔹 Tarea 4 – \"Create_Alert_Info\" ✅ OBLIGATORIA\nDespués de enviar los correos, ejecuta inmediatamente la herramienta \"Create_Alert_Info\" para registrar en la tabla historial_cobranzas que se notificó al cliente.\n\nDebes crear un registro por cliente válido, con la siguiente estructura:\n\n\"client_id\": proviene de la columna id de la consulta previa.\n\n\"factura_id\": también extraído de la misma consulta.\n\n\"fecha\": usa la fecha actual en el siguiente formato:\n{{ DateTime.local().toFormat('cccc d LLLL yyyy') }}\n\n\"tipo\": siempre \"correo\".\n\n\"observación\": agrega una nota relevante (por ejemplo, un resumen de estado u otra observación útil).\n\nEsta tarea es obligatoria y debe ejecutarse después de enviar los correos, sin excepción ni retraso.\n\n⚠️ Reglas y Restricciones\nLas herramientas \"Expire_Invoice_Query\", \"Send_Alert_Email\" y \"Create_Alert_Info\" son obligatorias.\n\nLas tareas deben seguirse exactamente en el orden establecido.\n\nNo se permite inventar, renombrar, ni omitir herramientas o pasos.\n\nLa lógica debe ser modular y extensible, preparada para integrar tareas futuras sin conflictos."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "5f43f287-df05-4075-b4ea-80634e9a2907",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        140,
+        240
+      ],
+      "id": "abf2a081-a179-4e02-8025-9e1ff721f318",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "sImH9N1ibKOSOZyo",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Execute a SQL query in Postgres",
+        "operation": "executeQuery",
+        "query": "SELECT\n    f.*,\n    c.*\nFROM\n    facturas f\nJOIN\n    clientes c ON f.cliente_id = c.id\nWHERE\n    f.fecha_vencimiento < CURRENT_DATE + INTERVAL '7 days'\n    AND f.estado != 'pagada';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        320,
+        240
+      ],
+      "id": "befbae20-51c6-4391-8273-da78fc93e08d",
+      "name": "Expire_Invoice_Query",
+      "credentials": {
+        "postgres": {
+          "id": "ap21GrPhwrj38Vbj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "*"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40,
+        440
+      ],
+      "id": "5b21e1fb-b81a-4a8f-8c99-2253176c86dc",
+      "name": "Telegram Trigger",
+      "webhookId": "a93173f7-8f6b-44ba-842f-8ce7a784a515",
+      "credentials": {
+        "telegramApi": {
+          "id": "VXy85IIZIbF7nHsz",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "Actúa como un asistente financiero virtual integrado a un sistema ERP. Tu función es ayudar a los clientes a obtener información clara, precisa y organizada sobre cualquier aspecto relacionado con su situación financiera dentro del sistema.\n\nEstás conectado a una base de datos en Supabase y puedes usar herramientas especializadas para responder. Debes usar obligatoriamente la herramienta correspondiente según el tema de la pregunta:\n\n- Si la pregunta está relacionada con facturas (vencidas, emitidas, pendientes, fechas de vencimiento, montos facturados, historial de facturación, etc.), usa la herramienta \"Invoice_Query\".\n- Si la pregunta está relacionada con pagos (pagos realizados, pendientes, fechas de pago, montos, forma de pago, recibos, etc.), usa la herramienta \"Payments_Query\".\n- Si la pregunta está relacionada con saldos o estados de cuenta (saldo pendiente total, resumen de movimientos, cargos, abonos, fecha de corte, etc.), usa la herramienta \"Estados_Query\".\n\n⚠️ Todas estas herramientas requieren obligatoriamente el correo electrónico del cliente. Si el cliente no lo proporciona, debes pedírselo de forma cordial antes de continuar. Si no lo ha proporcionado antes.\n\nEjemplo: \"Con gusto te ayudo, ¿me puedes confirmar tu correo electrónico registrado para consultar tu información?\"\n\nSi el cliente hace una pregunta que involucra más de un tema (por ejemplo: \"¿Qué facturas tengo vencidas y cuánto he pagado este mes?\"), debes ejecutar las herramientas necesarias y combinar sus respuestas en un solo mensaje, claro y estructurado. Nunca ignores ninguna parte de la pregunta.\n\nSi el cliente hace una pregunta que no esté relacionada con ninguno de estos temas (por ejemplo: soporte técnico, productos, dudas generales de la empresa), respóndele amablemente explicando que solo puedes ayudarle con temas financieros y guíalo con ejemplos de lo que puedes hacer, como:\n\n- Consultar saldo pendiente\n- Revisar facturas vencidas o emitidas\n- Confirmar pagos realizados\n- Ver el estado general de cuenta\n\nTu estilo debe ser amable, profesional y empático. Usa lenguaje claro, guías paso a paso si es necesario y mantén una actitud proactiva en todo momento. Siempre busca ayudar al cliente de la mejor manera posible usando la información disponible en el sistema ERP.\n\nLa fecha de hoy es: {{ DateTime.local().toFormat(‘cccc d LLLL yyyy’) }}. Si se mencionan términos como “vencidos”, “vencimiento”, “proximos a vencer” o terminos referentes a fechas, siempre referencia la fecha actual correctamente."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        240,
+        440
+      ],
+      "id": "4ab5974a-3379-4df5-ba51-005f758a26af",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        680
+      ],
+      "id": "9d4c1e79-f28b-4f3a-bdbc-5dfc84141121",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "sImH9N1ibKOSOZyo",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        300,
+        680
+      ],
+      "id": "a1aaf7ab-43cc-4335-8944-2552832ea551",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Returns the information of invoice just the inoive information",
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM facturas\nWHERE cliente_id = (SELECT id FROM clientes WHERE correo_electronico = '{{ $fromAI(\"correo\",\"correo del usuario\") }}')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        460,
+        680
+      ],
+      "id": "8d0982a6-5dba-48cd-921d-bd2532bb27c0",
+      "name": "Invoice_Query",
+      "credentials": {
+        "postgres": {
+          "id": "ap21GrPhwrj38Vbj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Returns the information of payments just the payments information",
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM pagos\nWHERE cliente_id = (SELECT id FROM clientes WHERE correo_electronico = '{{ $fromAI(\"correo\",\"correo del usuario\") }}')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        600,
+        680
+      ],
+      "id": "dc4e0c61-589b-4e83-8b4a-2d8b8f15b8f8",
+      "name": "Payments_Query",
+      "credentials": {
+        "postgres": {
+          "id": "ap21GrPhwrj38Vbj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Returns the information of estados just the estados information",
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM estados_cuenta\nWHERE cliente_id = (SELECT id FROM clientes WHERE correo_electronico = '{{ $fromAI(\"correo\",\"correo del usuario\") }}')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        740,
+        680
+      ],
+      "id": "f42ebaf4-a43c-427a-b9f4-3738f036ad44",
+      "name": "Estados_Query",
+      "credentials": {
+        "postgres": {
+          "id": "ap21GrPhwrj38Vbj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        660,
+        440
+      ],
+      "id": "9ee693eb-e4d2-49f1-b4c6-e2181f8c4aef",
+      "name": "Telegram",
+      "webhookId": "16009a4e-2c25-4bc3-92ba-7805d32f366c",
+      "credentials": {
+        "telegramApi": {
+          "id": "VXy85IIZIbF7nHsz",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Send a message in Gmail",
+        "sendTo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('To', ``, 'string') }}",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "emailType": "text",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        480,
+        240
+      ],
+      "id": "a7aeb01f-a721-4811-ab5c-791428861f37",
+      "name": "Send_Alert_Email",
+      "webhookId": "fae33ad4-bacc-4495-9d9a-6f07b8c4adc4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XyIrDsqh9UZeThhD",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Create a row in Supabase in historial_cobranzas, para guardar la informacion de avisado al cliente",
+        "tableId": "historial_cobranzas",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues1_Field_Value', ``, 'string') }}"
+            },
+            {
+              "fieldId": "fecha",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "observaciones",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues4_Field_Value', ``, 'string') }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "correo"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        640,
+        240
+      ],
+      "id": "fe49e955-7bde-49f5-9706-0dd96579d284",
+      "name": "Create_Alert_Info",
+      "credentials": {
+        "supabaseApi": {
+          "id": "EPQ1ey63tqnnW6dx",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expire_Invoice_Query": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice_Query": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payments_Query": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estados_Query": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send_Alert_Email": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Create_Alert_Info": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3bca5914-4b6f-45e5-848f-cbae900c287e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "927d759dd2bee7816a4c355a71c02ccef506830a256fd40d77ed3e8e1ef27080"
+  },
+  "id": "tl2mTIojN7dGJ8W0",
+  "tags": []
+}
